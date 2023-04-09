@@ -1,8 +1,11 @@
 from flask import Flask
-from flask import request
+import argparse
+import json
+import requests
 import time
 
-app = Flask(__name__)
+from flask import request
+
 
 class GMCValues():
     def __init__(self):
@@ -11,6 +14,22 @@ class GMCValues():
         self.uSV = 0
         self.report_timestamp = time.time()
 
+        self.read_config("gq-gmc500plus.json")
+
+    def parse_commandline_arguments(self):
+        parser = argparse.ArgumentParser()
+
+        parser._action_groups.pop()
+        optional = parser.add_argument_group('optional arguments')
+
+        optional.add_argument("-C", "--config",
+            nargs='?',
+            help="Location of config file",
+            default="gq-gmc500plus.json"),
+
+        # convert args to dict
+        self.args = vars(parser.parse_args())
+
     def set_values(self, cpm, acpm, uSV):
         print(f"{time.time()} CPM: {cpm} | ACPM: {acpm} | uSV: {uSV}")
 
@@ -18,6 +37,32 @@ class GMCValues():
         self.acpm = acpm
         self.uSV = uSV
         self.report_timestamp = time.time()
+
+        self.publish_measurement()
+
+    # https://www.gmcmap.com/AutomaticallySubmitData.asp
+    def publish_measurement(self):
+        payload = {
+            "AID": self.config["account_id"],
+            "GID": self.config["device_id"],
+            "cpm": self.cpm,
+            "acpm": self.acpm,
+            "uSV": self.uSV,
+        }
+        response = requests.get(GMCMAP_URL, params=payload)
+        print(response)
+        print(response.status_code)
+
+    def read_config(self, configfile):
+        try:
+            with open(configfile, "r") as jsonfile:
+                self.config = json.load(jsonfile)
+        except FileNotFoundError as fnferror:
+            print("Error in parsing config file {}".format(fnferror))
+            sys.exit(1)
+        except PermissionError as permerror:
+            print("Error in parsing config file {}".format(permerror))
+            sys.exit(1)
 
     def print_values_metric(self):
         line = "# HELP count_per_minute_cpm Radiation in count per minute\n"
@@ -35,7 +80,9 @@ class GMCValues():
         return line
 
 
+GMCMAP_URL = "http://www.gmcmap.com/log2.asp"
 gmcv = GMCValues()
+app = Flask(__name__)
 
 @app.route("/u")
 def uu():
