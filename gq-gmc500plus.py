@@ -1,34 +1,26 @@
-from flask import Flask
 import argparse
 import json
 import requests
 import time
+import sys
 
+from flask import Flask
 from flask import request
+from os.path import exists
 
 
 class GMCValues():
     def __init__(self):
+        self.config = None
         self.cpm = 0
         self.acpm = 0
         self.uSV = 0
         self.report_timestamp = time.time()
 
-        self.read_config("gq-gmc500plus.json")
+        config_file = "/etc/gq-gmc500plus.json"
 
-    def parse_commandline_arguments(self):
-        parser = argparse.ArgumentParser()
-
-        parser._action_groups.pop()
-        optional = parser.add_argument_group('optional arguments')
-
-        optional.add_argument("-C", "--config",
-            nargs='?',
-            help="Location of config file",
-            default="gq-gmc500plus.json"),
-
-        # convert args to dict
-        self.args = vars(parser.parse_args())
+        if exists(config_file):
+            self.read_config(config_file)
 
     def set_values(self, cpm, acpm, uSV):
         print(f"{time.time()} CPM: {cpm} | ACPM: {acpm} | uSV: {uSV}")
@@ -38,7 +30,8 @@ class GMCValues():
         self.uSV = uSV
         self.report_timestamp = time.time()
 
-        self.publish_measurement()
+        if self.config != None:
+            self.publish_measurement()
 
     # https://www.gmcmap.com/AutomaticallySubmitData.asp
     def publish_measurement(self):
@@ -65,18 +58,18 @@ class GMCValues():
             sys.exit(1)
 
     def print_values_metric(self):
-        line = "# HELP count_per_minute_cpm Radiation in count per minute\n"
-        line += "# TYPE count_per_minute_cpm gauge\n"
-        line += f"count_per_minute_cpm {self.cpm}\n"
-        line += "# HELP average_count_per_minute_cpm Radiation in average count per minute\n"
-        line += "# TYPE average_count_per_minute_cpm gauge\n"
-        line += f"average_count_per_minute_cpm {self.acpm}\n"
-        line += "# HELP micro_sievert_usv Radiation in uSV\n"
-        line += "# TYPE micro_sievert_usv gauge\n"
-        line += f"micro_sievert_uSV {self.uSV}\n"
+        line = "# HELP gmcradiation_count_per_minute_cpm Radiation in count per minute\n"
+        line += "# TYPE gmcradiation_count_per_minute_cpm gauge\n"
+        line += f"gmcradiation_count_per_minute_cpm {self.cpm}\n"
+        line += "# HELP gmcradiation_average_count_per_minute_cpm Radiation in average count per minute\n"
+        line += "# TYPE gmcradiation_average_count_per_minute_cpm gauge\n"
+        line += f"gmcradiation_average_count_per_minute_cpm {self.acpm}\n"
+        line += "# HELP gmcradiation_micro_sievert_usv Radiation in uSV\n"
+        line += "# TYPE gmcradiation_micro_sievert_usv gauge\n"
+        line += f"gmcradiation_micro_sievert_uSV {self.uSV}\n"
         line += "# HELP last_record_timestamp Timestamp of last measurement received\n"
         line += "# TYPE last_record_timestamp gauge\n"
-        line += f"last_record_timestamp {self.report_timestamp}\n"
+        line += f"gmcradiation_last_record_timestamp {self.report_timestamp}\n"
         return line
 
 
